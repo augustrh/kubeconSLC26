@@ -12,6 +12,8 @@ The skill generates four core OCM resources — **three objects, one placement, 
 
 ## Quickstart
 
+> New to OCM add-ons? See **[WALKTHROUGH.md](WALKTHROUGH.md)** for a step-by-step tour of what each command below does behind the scenes.
+
 1. **Spin up local multi-cluster environment (Hub + 2 Managed Clusters):**
    ```bash
    make setup-env
