@@ -1,0 +1,62 @@
+# WHAT TO SHIP.
+# Same node-exporter DaemonSet you already run on one cluster — now it's cargo
+# the hub knows how to ship. The only edits vs. the source manifest are the two
+# {{VARIABLE}} placeholders, resolved per-cluster from the AddOnDeploymentConfig.
+apiVersion: addon.open-cluster-management.io/v1alpha1
+kind: AddOnTemplate
+metadata:
+  name: node-exporter
+spec:
+  addonName: node-exporter
+  agentSpec:
+    workload:
+      manifests:
+        # The namespace the agent workload lands in on every spoke.
+        - apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: monitoring
+        - apiVersion: apps/v1
+          kind: DaemonSet
+          metadata:
+            name: node-exporter
+            namespace: monitoring
+            labels:
+              app: node-exporter
+          spec:
+            selector:
+              matchLabels:
+                app: node-exporter
+            template:
+              metadata:
+                labels:
+                  app: node-exporter
+              spec:
+                hostNetwork: true
+                hostPID: true
+                containers:
+                  - name: node-exporter
+                    # {{IMAGE_TAG}} and {{LOG_LEVEL}} come from customizedVariables.
+                    image: quay.io/prometheus/node-exporter:{{IMAGE_TAG}}
+                    args:
+                      - "--path.rootfs=/host/root"
+                      - "--log.level={{LOG_LEVEL}}"
+                    ports:
+                      - name: metrics
+                        containerPort: 9100
+                        hostPort: 9100
+                    resources:
+                      requests:
+                        cpu: 50m
+                        memory: 30Mi
+                      limits:
+                        cpu: 200m
+                        memory: 100Mi
+                    volumeMounts:
+                      - name: root
+                        mountPath: /host/root
+                        readOnly: true
+                volumes:
+                  - name: root
+                    hostPath:
+                      path: /

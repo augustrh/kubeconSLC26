@@ -1,0 +1,17 @@
+# PER-CLUSTER KNOBS.
+# One template, but every cluster can differ — log level, image tag — without
+# editing the workload. These values fill the {{VARIABLE}} placeholders in the
+# AddOnTemplate. Change them here, the hub re-renders and re-rolls the fleet.
+apiVersion: addon.open-cluster-management.io/v1alpha1
+kind: AddOnDeploymentConfig
+metadata:
+  name: node-exporter
+  namespace: open-cluster-management
+spec:
+  # Empty string = respect the namespaces baked into the manifests (monitoring).
+  agentInstallNamespace: ""
+  customizedVariables:
+    - name: IMAGE_TAG
+      value: "v1.8.2"
+    - name: LOG_LEVEL
+      value: "info"

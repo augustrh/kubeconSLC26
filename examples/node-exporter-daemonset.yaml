@@ -1,0 +1,47 @@
+# A recognizable, real single-cluster agent: Prometheus node-exporter.
+# The "real problem": you need node metrics on every node — now do it on every
+# node of every cluster in the fleet, with per-cluster knobs (log level, image tag).
+# This is the input the skill converts into an OCM add-on bundle.
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: node-exporter
+  namespace: monitoring
+  labels:
+    app: node-exporter
+spec:
+  selector:
+    matchLabels:
+      app: node-exporter
+  template:
+    metadata:
+      labels:
+        app: node-exporter
+    spec:
+      hostNetwork: true
+      hostPID: true
+      containers:
+        - name: node-exporter
+          image: quay.io/prometheus/node-exporter:v1.8.2
+          args:
+            - "--path.rootfs=/host/root"
+            - "--log.level=info"
+          ports:
+            - name: metrics
+              containerPort: 9100
+              hostPort: 9100
+          resources:
+            requests:
+              cpu: 50m
+              memory: 30Mi
+            limits:
+              cpu: 200m
+              memory: 100Mi
+          volumeMounts:
+            - name: root
+              mountPath: /host/root
+              readOnly: true
+      volumes:
+        - name: root
+          hostPath:
+            path: /

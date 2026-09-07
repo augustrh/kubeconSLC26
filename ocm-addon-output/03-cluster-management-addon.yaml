@@ -1,0 +1,31 @@
+# REGISTER + ROLL OUT.
+# This registers the add-on with the hub and wires the two configs above.
+# installStrategy is the magic word: "wherever this Placement points, install me."
+apiVersion: addon.open-cluster-management.io/v1alpha1
+kind: ClusterManagementAddOn
+metadata:
+  name: node-exporter
+  annotations:
+    # Without this, the addon-manager won't own/roll out the add-on.
+    addon.open-cluster-management.io/lifecycle: "addon-manager"
+spec:
+  addOnMeta:
+    displayName: Node Exporter
+    description: Prometheus node-exporter, rolled to every node of every cluster.
+  supportedConfigs:
+    # The "what to ship".
+    - group: addon.open-cluster-management.io
+      resource: addontemplates
+      defaultConfig:
+        name: node-exporter
+    # The "per-cluster knobs".
+    - group: addon.open-cluster-management.io
+      resource: addondeploymentconfigs
+      defaultConfig:
+        name: node-exporter
+        namespace: open-cluster-management
+  installStrategy:
+    type: Placements
+    placements:
+      - name: select-all
+        namespace: default

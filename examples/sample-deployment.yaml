@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-agent
+  namespace: default
+  labels:
+    app: demo-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: demo-agent
+  template:
+    metadata:
+      labels:
+        app: demo-agent
+    spec:
+      containers:
+      - name: agent
+        image: alpine:3.19
+        command: ["/bin/sh", "-c", "echo 'Hello from OCM Addon Agent!' && sleep 3600"]
+        resources:
+          limits:
+            cpu: 100m
+            memory: 128Mi
+          requests:
+            cpu: 50m
+            memory: 64Mi

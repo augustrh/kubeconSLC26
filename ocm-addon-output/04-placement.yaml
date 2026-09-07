@@ -1,0 +1,14 @@
+# WHICH CLUSTERS — THE PAYOFF.
+# One object. Select the fleet. The hub does the rest.
+# No predicates + the 'global' clusterSet = every managed cluster.
+# NOTE: this selects clusters only because setup-env.sh bound the 'global'
+# ManagedClusterSet into the 'default' namespace. Without that binding a
+# Placement here selects ZERO clusters and the rollout silently no-ops.
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
+metadata:
+  name: select-all
+  namespace: default
+spec:
+  clusterSets:
+    - global
