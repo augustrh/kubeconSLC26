@@ -85,6 +85,20 @@ kubectl --context kind-cluster-1 get pods -n monitoring
 
 ---
 
+## Undeploy — `make reset` (between rehearsals)
+
+**What you type:** `make reset` — removes the add-on but keeps the clusters, so you're back at "ready to demo" without rebuilding the fleet.
+
+**What happens behind the scenes:**
+
+1. It deletes the add-on objects **on the hub by kind and name** — `ClusterManagementAddOn`, `AddOnTemplate`, `AddOnDeploymentConfig`, and every `Placement` in `default`. Deleting by name (rather than `kubectl delete -f` a bundle dir) matters: the live skill run may have named its Placement something different from the fallback, so name-based deletion cleans up whichever one is there and never leaves an orphan.
+2. Deleting the `ClusterManagementAddOn` triggers the reverse of the rollout: the addon-manager removes each per-cluster `ManagedClusterAddOn`, which deletes its `ManifestWork`, which tells each klusterlet to **remove the node-exporter DaemonSet from its spoke**. This is OCM's garbage collection — the same hub→spoke channel, running backwards.
+3. That spoke cleanup is **asynchronous**: the hub-side delete returns immediately, but the pods take a beat to terminate. So reset then **waits** (via `hack/wait-spokes-clean.sh`) until the `monitoring` namespace is empty on every spoke, capped at 60s. When reset returns, the fleet is genuinely clean — not just the hub.
+
+**End state:** hub + spokes still up and registered, no add-on anywhere. Run `make demo` → apply → watch again as many times as you like. (Full teardown of the kind clusters is `make clean`.)
+
+---
+
 ## The four objects at a glance
 
 | # | Object | Role | One-liner |

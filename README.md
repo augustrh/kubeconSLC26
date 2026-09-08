@@ -42,6 +42,12 @@ make verify         # runs the skill (--quiet) and diffs its output against brea
 make reset          # removes any deployed add-on so the demo starts from nothing
 ```
 
+`make reset` deletes the add-on objects on the hub by kind/name (so it works no
+matter what the live run named its Placement) and then **waits until node-exporter
+is actually gone from every spoke** before returning — the hub-side delete finishes
+first, but the workload comes off the spokes a beat later (ManifestWork GC). When
+reset returns, you're genuinely at a clean slate.
+
 Now you're staged: clusters up, nothing deployed. Keep [`docs/rollout-stage-notes.md`](docs/rollout-stage-notes.md)
 (the "meanwhile, the hub is doing the work" diagram + talk-track) on screen for the
 ~30–90s rollout gap.
@@ -49,10 +55,14 @@ Now you're staged: clusters up, nothing deployed. Keep [`docs/rollout-stage-note
 **Rehearsal loop** (repeat as often as you like without rebuilding clusters):
 
 ```bash
-kubectl apply -f ./break-glass/          # deploy
-kubectl get managedclusteraddon -A -w    # watch AVAILABLE flip to True on both
-make reset                               # tear the add-on back down, ready for the next run
+make demo                # generate the bundle (interactive, presenter-paced)
+make showtime            # apply + watch until Available + show pods per spoke (self-terminating)
+make reset               # tear the add-on back down + wait for spokes to drain, ready for the next run
 ```
+
+`make showtime` runs the three payoff steps as one calm flow (no hanging `kubectl … -w`).
+For a real on-stage emergency, `make showtime-glass` runs the same flow against the
+known-good `break-glass/` bundle.
 
 **Teardown when you're completely done:** `make clean` (deletes the kind clusters).
 
