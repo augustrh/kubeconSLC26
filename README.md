@@ -48,15 +48,25 @@ is actually gone from every spoke** before returning — the hub-side delete fin
 first, but the workload comes off the spokes a beat later (ManifestWork GC). When
 reset returns, you're genuinely at a clean slate.
 
-Now you're staged: clusters up, nothing deployed. Keep [`docs/rollout-stage-notes.md`](docs/rollout-stage-notes.md)
-(the "meanwhile, the hub is doing the work" diagram + talk-track) on screen for the
-~30–90s rollout gap.
+Now you're staged: clusters up, nothing deployed. For the ~75–85s rollout gap, keep
+[`docs/rollout-stage-notes.md`](docs/rollout-stage-notes.md) (the "meanwhile, the hub
+is doing the work" diagram + a paced ~80s talk-track) handy. To put the diagram on a
+second screen as a clean, projector-friendly page:
+
+```bash
+make diagram        # regenerate + open docs/rollout-diagram.html in your browser
+```
+
+The diagram has one source of truth — [`docs/rollout-diagram.txt`](docs/rollout-diagram.txt) —
+which `make showtime` prints live, the stage notes embed, and `make diagram` renders.
+Edit that one file and all three stay in sync. For a static image (slides), run
+`bash ./hack/render-diagram.sh --png` to also write `docs/rollout-diagram.png`.
 
 **Rehearsal loop** (repeat as often as you like without rebuilding clusters):
 
 ```bash
 make demo                # generate the bundle (interactive, presenter-paced)
-make showtime            # apply + watch until Available + show pods per spoke (self-terminating)
+make showtime            # apply + watch until Available + show pods per spoke (holds until Ctrl-C)
 make reset               # tear the add-on back down + wait for spokes to drain, ready for the next run
 ```
 
@@ -98,10 +108,11 @@ make setup-env      # rebuild hub + 2 spokes, join/accept, bind 'global', pre-pu
    ```bash
    make showtime
    ```
-   `make showtime` runs all three payoff steps as one calm, self-terminating flow:
-   applies `./ocm-addon-output/` to the hub, live-refreshes the rollout until every
-   add-on is `Available` **and** node-exporter pods are actually `Ready` on each spoke
-   (then stops on its own — no hanging `kubectl … -w`), and prints the pods per cluster.
+   `make showtime` runs all three payoff steps as one calm flow: applies
+   `./ocm-addon-output/` to the hub, live-refreshes the rollout until every add-on is
+   `Available` **and** node-exporter pods are actually `Ready` on each spoke, prints
+   the pods per cluster, then **holds on the finished screen** (refreshing in place)
+   until you press **Ctrl-C** — no hanging `kubectl … -w`, nothing scrolls away on stage.
    > 🧯 **Demo emergency?** If the live skill run misbehaves, `make showtime-glass`
    > runs the exact same flow against the known-good [`break-glass/`](break-glass/README.md) bundle.
 
@@ -113,3 +124,26 @@ make setup-env      # rebuild hub + 2 spokes, join/accept, bind 'global', pre-pu
    kubectl --context kind-cluster-1 get pods -n monitoring -o wide   # the pods, on a spoke
    ```
    </details>
+
+## Take the skill with you (`make skill`)
+
+The demo drives `SKILL.md` directly, but the skill also stands on its own. `make skill`
+packages it as a self-contained, installable [Agent Skill](https://code.claude.com/docs/en/skills)
+under `dist/` (gitignored) — **without changing anything in this repo**: it reads
+`SKILL.md` + `examples/` and writes a copy with the required frontmatter *prepended in
+the generated package only*.
+
+```bash
+make skill                          # build dist/ocm-addon-skill/ (SKILL.md + examples/ + install README)
+bash ./hack/build-skill.sh --zip    # also write dist/ocm-addon-skill.zip to share
+```
+
+Then install and try it in any project:
+
+```bash
+cp -R dist/ocm-addon-skill ~/.claude/skills/   # then restart Claude Code
+# ...and just ask: "turn examples/node-exporter-daemonset.yaml into an OCM add-on"
+```
+
+The package is fully self-contained, so you can also lift `dist/ocm-addon-skill/`
+straight into an `OCM/skills/`-style repo.

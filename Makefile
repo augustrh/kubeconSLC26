@@ -1,4 +1,4 @@
-.PHONY: check-diff test-e2e test-unit images image-push image-manifest image-manifest-annotate image-manifest-push setup-env demo verify showtime showtime-glass reset clean
+.PHONY: check-diff test-e2e test-unit images image-push image-manifest image-manifest-annotate image-manifest-push setup-env demo verify showtime showtime-glass diagram skill reset clean
 
 check-diff:
 	@git diff --exit-code || (echo "Git working directory is dirty!" && exit 1)
@@ -43,14 +43,29 @@ verify:
 		exit 1; \
 	fi
 
-# The live-demo deploy button: apply -> watch until Available (self-terminating,
-# no hanging -w) -> show node-exporter pods per spoke. Run after `make demo`.
+# The live-demo deploy button: apply -> watch until Available -> show node-exporter
+# pods per spoke, then HOLD on the finished screen (refreshing in place) until you
+# press Ctrl-C. No hanging -w; nothing scrolls away on stage. Run after `make demo`.
 showtime:
 	bash ./hack/showtime.sh ./ocm-addon-output
 
 # Same, but deploy the known-good fallback (for a real on-stage emergency).
 showtime-glass:
 	bash ./hack/showtime.sh ./break-glass
+
+# Pop up the "meanwhile, the hub is doing the work" diagram as a clean HTML page
+# (crisp on a projector, clean background) — regenerated from docs/rollout-diagram.txt,
+# the same text showtime.sh prints. Keep this on a second screen during the ~80s rollout.
+diagram:
+	bash ./hack/render-diagram.sh --open
+
+# Package the skill as a standalone, installable Agent Skill under dist/ (gitignored),
+# entirely off to the side — reads SKILL.md + examples/ and generates a self-contained
+# folder (frontmatter prepended in the COPY only; the source SKILL.md is never touched).
+# Drop dist/ocm-addon-skill/ into ~/.claude/skills/ to try it, or lift it into an
+# OCM/skills/ repo. `make skill` builds the folder; `hack/build-skill.sh --zip` also zips it.
+skill:
+	bash ./hack/build-skill.sh
 
 # Light reset between rehearsals: remove the add-on, KEEP the clusters, so you're
 # back to "ready to demo" (clusters up, nothing deployed). Deleting the

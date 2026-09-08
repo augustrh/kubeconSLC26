@@ -84,14 +84,27 @@ Close the Claude session, then:
 make showtime          # applies ./ocm-addon-output, watches until Available, shows pods per spoke
 ```
 
-`make showtime` does all three payoff steps as one calm, self-terminating flow: applies
-the bundle, live-refreshes the rollout table until every add-on is `Available` (then
-**stops on its own** — no hanging `-w`), and prints node-exporter pods on each spoke.
-While it's watching, switch to [rollout-stage-notes.md](rollout-stage-notes.md) and
-narrate the rollout.
+`make showtime` does all three payoff steps as one calm flow: applies the bundle,
+live-refreshes the rollout table until every add-on is `Available` **and** pods are
+`Ready` on each spoke, prints node-exporter pods per spoke, then **holds on the
+finished screen** (refreshing in place) until you press **Ctrl-C** — no hanging `-w`,
+nothing scrolls away. The ~75–85s wait is OCM's reconcile floor, not image pull, so
+it's steady every time — **own it as narration time.**
+
+While it watches, narrate the rollout from [rollout-stage-notes.md](rollout-stage-notes.md).
+`make showtime` prints the "meanwhile, the hub is doing the work" diagram right on the
+live screen; for a clean second-screen copy, run `make diagram` (opens an HTML render).
+The stage notes have a **paced ~80s talk-track** (0–10s apply → 10–25s hub picks it up
+→ 25–45s fan-out + templating → 45–65s ship to spokes → 65–80s payoff) built to fill
+exactly this window — walk the diagram top-to-bottom and you'll land on the payoff as
+the fleet goes green.
 
 **Say this (on apply):** "Four objects, one apply, on the hub — I never touched the
 managed clusters. Watch it light up across the fleet."
+
+**Don't be startled by Ctrl-C:** because you ran it through `make`, pressing Ctrl-C
+also prints a harmless `make: *** [showtime] Interrupt` line. It's cosmetic. To avoid
+it entirely, run `bash ./hack/showtime.sh` directly instead of `make showtime`.
 
 **Emergency:** if the live bundle is bad, `make showtime-glass` runs the exact same
 flow against the known-good `break-glass/` bundle.

@@ -1,0 +1,24 @@
+─────────────────────────  meanwhile, the hub is doing the work  ─────────────────────────
+
+
+     YOU  ──▶  kubectl apply      (4 objects, once, on the HUB)
+      │
+      ▼
+     ClusterManagementAddOn  ──(installStrategy)──▶  Placement  ──▶  PlacementDecision
+      │   addon-manager owns it                                        [ the fleet ]
+      ▼
+     ManagedClusterAddOn      (one per selected cluster)
+      │   renders AddOnTemplate + vars   ({{IMAGE_TAG}}, {{LOG_LEVEL}})
+      ▼
+     ManifestWork  ──▶  shipped down to each spoke
+      │
+      ▼
+     ┌──── spoke ────┐    klusterlet applies Namespace + DaemonSet;
+     │ node-exporter │    pods start, one per node, report healthy  ──▶  back to hub
+     └───────────────┘
+      │
+      ▼
+     AVAILABLE = True      (per cluster)
+
+
+──────────────────────────────────────────────────────────────────────────────────────

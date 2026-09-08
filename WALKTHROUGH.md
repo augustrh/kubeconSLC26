@@ -71,7 +71,7 @@ From one `kubectl apply` on the hub, the hub fanned the workload out to every ma
 
 ## Step 4 — `make showtime` (the watch phase)
 
-**What you type:** nothing new — the same `make showtime` from Step 3 now watches the rollout. After the apply, `hack/showtime.sh` live-refreshes `kubectl get managedclusteraddon -A` and the per-spoke pods until it's done, then **stops on its own** (no hanging `-w`).
+**What you type:** nothing new — the same `make showtime` from Step 3 now watches the rollout. After the apply, `hack/showtime.sh` live-refreshes `kubectl get managedclusteraddon -A` and the per-spoke pods until it's done, then **holds on the finished screen** (refreshing in place) until you press **Ctrl-C** — no hanging `-w`, and nothing scrolls off screen on stage. During the ~75–85s rollout it also prints the "meanwhile, the hub is doing the work" diagram under the live status so the audience can follow along; for a second-screen version of that diagram, `make diagram` opens a clean HTML render (source: [`docs/rollout-diagram.txt`](docs/rollout-diagram.txt), with a paced ~80s talk-track in [`docs/rollout-stage-notes.md`](docs/rollout-stage-notes.md)).
 
 **What happens behind the scenes:**
 

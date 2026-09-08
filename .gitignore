@@ -1,3 +1,13 @@
 # Live skill output from `make demo` — regenerated each run, not committed.
 # The known-good fallback lives in break-glass/ (which IS committed).
 /ocm-addon-output/
+
+# Generated diagram renders — rebuilt from docs/rollout-diagram.txt (the committed
+# source) by `make diagram` / hack/render-diagram.sh. Not committed so they can't
+# drift from the source.
+/docs/rollout-diagram.html
+/docs/rollout-diagram.png
+
+# Generated standalone skill package — rebuilt from SKILL.md + examples/ by
+# `make skill` / hack/build-skill.sh. Regenerable, so not committed.
+/dist/

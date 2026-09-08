@@ -14,6 +14,9 @@
 #   ./hack/showtime.sh ./break-glass   # applies the known-good fallback instead
 set -euo pipefail
 
+# Resolve repo root from the script location so paths work no matter the CWD.
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
 BUNDLE="${1:-./ocm-addon-output}"
 HUB_CONTEXT="kind-hub"
 
@@ -33,31 +36,40 @@ EXPECTED=$(echo "${SPOKES}" | wc -w | tr -d ' ')
 
 # "Meanwhile, the hub is doing the work" diagram — shown under the live status on
 # every refresh so the audience sees what's happening during the rollout gap.
-# Mirrors docs/rollout-stage-notes.md; keep the two in sync if you edit either.
-read -r -d '' ROLLOUT_DIAGRAM <<'ART' || true
+# Single source of truth: docs/rollout-diagram.txt (same file the stage notes and
+# the pop-up HTML render use, so they can never drift). Embedded fallback below
+# keeps this script working if run standalone without the repo docs.
+DIAGRAM_FILE="${REPO_ROOT}/docs/rollout-diagram.txt"
+if [ -f "${DIAGRAM_FILE}" ]; then
+  ROLLOUT_DIAGRAM="$(cat "${DIAGRAM_FILE}")"
+else
+  read -r -d '' ROLLOUT_DIAGRAM <<'ART' || true
 ─────────────────────────  meanwhile, the hub is doing the work  ─────────────────────────
 
 
-     YOU  ──▶  kubectl apply     (4 objects, once, on the HUB)
+     YOU  ──▶  kubectl apply      (4 objects, once, on the HUB)
       │
-      ▼   HUB
+      ▼
      ClusterManagementAddOn  ──(installStrategy)──▶  Placement  ──▶  PlacementDecision
-          │  addon-manager owns it                                     [ the fleet ]
-          │
-          ▼   for EACH selected cluster:
-     ManagedClusterAddOn  ──renders AddOnTemplate + vars  ({{IMAGE_TAG}}, {{LOG_LEVEL}})
-          │
-          ▼   ships a ManifestWork down to each spoke
-     ┌──── spoke ────┐    klusterlet applies Namespace + DaemonSet,
-     │  node-exporter │    node-exporter pods start, report healthy  ──▶  back to hub
+      │   addon-manager owns it                                        [ the fleet ]
+      ▼
+     ManagedClusterAddOn      (one per selected cluster)
+      │   renders AddOnTemplate + vars   ({{IMAGE_TAG}}, {{LOG_LEVEL}})
+      ▼
+     ManifestWork  ──▶  shipped down to each spoke
+      │
+      ▼
+     ┌──── spoke ────┐    klusterlet applies Namespace + DaemonSet;
+     │ node-exporter │    pods start, one per node, report healthy  ──▶  back to hub
      └───────────────┘
-          │
-          ▼
-     AVAILABLE = True     (per cluster)
+      │
+      ▼
+     AVAILABLE = True      (per cluster)
 
 
 ──────────────────────────────────────────────────────────────────────────────────────
 ART
+fi
 
 # Clean exit on Ctrl-C — the loop never self-terminates, so this is how you leave.
 trap 'printf "\n\n👋 done — exiting showtime.\n"; exit 0' INT
