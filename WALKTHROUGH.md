@@ -1,10 +1,10 @@
 # Quickstart Walkthrough — What Actually Happens
 
-A step-by-step tour of the four [README](README.md) quickstart commands, and what each one does *behind the scenes*. If you're new to OCM add-ons, read this alongside running the commands.
+A step-by-step tour of the [README](README.md) quickstart commands, and what each one does *behind the scenes*. If you're new to OCM add-ons, read this alongside running the commands. The quickstart is three commands — `make setup-env`, `make demo`, `make showtime` — but that last one bundles two distinct phases (apply, then watch the rollout), so this tour breaks them out as Step 3 and Step 4.
 
 **What this demo does:** it **deploys [Prometheus node-exporter](https://github.com/prometheus/node_exporter) as an OCM add-on.** node-exporter is a small, widely-used agent that exposes a host's hardware and kernel metrics (CPU, memory, disk, network) at `:9100/metrics` for Prometheus to scrape. It normally runs as a DaemonSet — one pod per node — with host access so it can read the real host. On one cluster that's trivial; the *real problem* is running it on every node of *every* cluster in a fleet, kept consistent and upgradable. That's exactly what turning it into an add-on solves. node-exporter is just the concrete payload — swap in any `Deployment` or `DaemonSet` and the flow is identical.
 
-**The through-line:** step 1 is plumbing (hub + spokes + the one binding that makes placement work), step 2 is authoring (four files, no cluster touched), step 3 is a single hub-side apply, and step 4 is watching the hub fan it out. The four objects map cleanly to **what to ship → how it varies → register + roll out → which clusters.**
+**The through-line:** step 1 is plumbing (hub + spokes + the one binding that makes placement work), step 2 is authoring (four files, no cluster touched), step 3 is a single hub-side apply, and step 4 is watching the hub fan it out. Steps 3 and 4 are both run by one command — `make showtime` — which applies the bundle and then watches the rollout to completion. The four objects map cleanly to **what to ship → how it varies → register + roll out → which clusters.**
 
 ---
 
@@ -50,9 +50,9 @@ There's no controller involved yet — these are just files on disk. A known-goo
 
 ---
 
-## Step 3 — `kubectl apply -f ./ocm-addon-output/`
+## Step 3 — `make showtime` (the apply phase)
 
-**What you type:** applies all four YAMLs **to the hub**.
+**What you type:** `make showtime` → runs [`hack/showtime.sh`](hack/showtime.sh), which first applies all four YAMLs **to the hub** (`kubectl apply -f ./ocm-addon-output/`). Don't run the raw `kubectl apply`/`get -w` commands on stage — `showtime` wraps them so nothing hangs and you're not juggling terminals. (For a real emergency, `make showtime-glass` does the same against the `break-glass/` bundle.)
 
 **What happens behind the scenes — this is where the hub takes over:**
 
@@ -69,19 +69,22 @@ From one `kubectl apply` on the hub, the hub fanned the workload out to every ma
 
 ---
 
-## Step 4 — `kubectl get managedclusteraddons -A`
+## Step 4 — `make showtime` (the watch phase)
 
-**What you type:** lists `ManagedClusterAddOn` objects across all namespaces on the hub.
+**What you type:** nothing new — the same `make showtime` from Step 3 now watches the rollout. After the apply, `hack/showtime.sh` live-refreshes `kubectl get managedclusteraddon -A` and the per-spoke pods until it's done, then **stops on its own** (no hanging `-w`).
 
 **What happens behind the scenes:**
 
-You're reading back the per-cluster records from step 3.5. You'll see a `node-exporter` add-on in each spoke's namespace (`cluster-1`, `cluster-2`), and you watch the **`AVAILABLE`** column flip to `True` as each klusterlet finishes applying the DaemonSet and reports its pods healthy. That column going `True` across both clusters *is* the demo's money shot — visible proof the fleet rollout worked.
+`showtime` is reading back the per-cluster records from step 3.5. You'll see a `node-exporter` add-on in each spoke's namespace (`cluster-1`, `cluster-2`), and you watch the **`AVAILABLE`** column flip to `True` as each klusterlet finishes applying the DaemonSet. But the add-on's `Available` condition flips `True` when the ManifestWork is *applied*, a moment **before** the pods finish starting — so `showtime` also gates on the real signal: node-exporter pods actually `Ready` on every spoke. Only when both are true (Available fleet-wide **and** pods Ready per spoke) does it print the final per-cluster pod list and stop. That's the demo's money shot — visible proof the fleet rollout worked.
 
-To close the loop, switch context to a spoke and see the actual pods running — the workload you started with, now on every node of every cluster, delivered by the hub:
+If you'd rather see it by hand, this is what those last steps are:
 
 ```bash
-kubectl --context kind-cluster-1 get pods -n monitoring
+kubectl get managedclusteraddon -A                               # AVAILABLE True fleet-wide
+kubectl --context kind-cluster-1 get pods -n monitoring -o wide   # the actual pods, on a spoke
 ```
+
+The workload you started with is now on every node of every cluster, delivered by the hub — from one apply.
 
 ---
 

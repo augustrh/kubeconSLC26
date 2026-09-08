@@ -12,10 +12,10 @@ The through-line to teach: **three objects, one placement, and the hub does the 
 A single-cluster Kubernetes workload manifest (`Deployment` or `DaemonSet`) provided by the user. Default demo input: `./examples/node-exporter-daemonset.yaml`.
 
 ## Modes
-- **Default = interactive, presenter-paced (use this on stage).** Scaffold **one object per turn**: print a single punchy sentence explaining it, then the YAML file, then stop and wait for the user to say "next" (or press Enter). This lets the presenter control timing. Do **not** dump all four at once in this mode.
+- **Default = interactive, presenter-paced (use this on stage).** Scaffold **one object per turn**: print a single punchy sentence explaining it, then **print the full YAML inline in your response inside a ```yaml fenced code block** (in addition to writing it to disk), then stop and wait for the user to say "next" (or press Enter). This lets the presenter control timing. **The inline YAML is mandatory and must be shown in full** — the presenter reads it off the screen on stage, so do NOT hide it behind a collapsed tool call (e.g. a bare `Write`/`Edit` whose output is folded). Do **not** dump all four at once in this mode.
 - **`--quiet` / "all at once"** = emit all four files with no narration, then the summary table (used by `make test-e2e`).
 
-Write all files into `./ocm-addon-output/`.
+Write all files into `./ocm-addon-output/`. **Always generate fresh** — build each file from the input workload and overwrite any existing output. If the directory already contains files, regenerate them; do **not** merely validate or narrate pre-existing content.
 
 ## The four manifests (scaffold in this order)
 
@@ -23,13 +23,14 @@ Write all files into `./ocm-addon-output/`.
 - `apiVersion: addon.open-cluster-management.io/v1alpha1`, `kind: AddOnTemplate`.
 - `spec.addonName: <addon-name>`.
 - `spec.agentSpec.workload.manifests:` — the user's workload, **verbatim except** for parameterized fields (see templating).
+- **Ship the namespace explicitly.** If any workload manifest sets `metadata.namespace: <ns>` for a namespace that isn't guaranteed to exist on the spokes (e.g. `monitoring`), prepend a `Namespace/<ns>` manifest as the **first** item in `workload.manifests`. Do **not** rely on `agentInstallNamespace` to create it — that field only sets the agent's install namespace, it does **not** create a namespace for your workload. Omitting the `Namespace` makes the ManifestWork fail with `namespaces "<ns>" not found` and the add-on stays `AVAILABLE=False` forever.
 - Optional `spec.registration` only if the agent needs hub access (skip for a simple metrics agent).
 - **One-liner to say:** *"Same YAML you already run — now it's cargo the hub knows how to ship."*
 
 ### 2 — `02-addon-deployment-config.yaml`  ("per-cluster knobs")
 - `kind: AddOnDeploymentConfig`, in namespace `open-cluster-management`.
 - `spec.customizedVariables: [{name, value}]` — the knobs (e.g. `LOG_LEVEL`, `IMAGE_TAG`).
-- Optional `spec.nodePlacement`, `spec.agentInstallNamespace`.
+- Optional `spec.nodePlacement`. Set `spec.agentInstallNamespace: ""` (empty) unless the user explicitly asks otherwise — it does **not** create your workload's namespace (ship a `Namespace` manifest in the template for that, see object 1).
 - **One-liner:** *"One template, but every cluster can differ — log level, image tag, node placement — without editing the workload."*
 
 ### 3 — `03-cluster-management-addon.yaml`  ("register + roll out")
@@ -54,6 +55,7 @@ Write all files into `./ocm-addon-output/`.
 ## Correctness guardrails (do NOT regress these)
 - **No Governance `PlacementBinding`** (`policy.open-cluster-management.io`). Add-on rollout is `ClusterManagementAddOn.spec.installStrategy` → `Placement`. Never emit a PlacementBinding.
 - The `Placement` **must** live in a namespace with a bound `ManagedClusterSet` or it selects **zero** clusters. Upstream OCM auto-creates the `global` clusterset (DefaultClusterSet feature gate, on by default) but does **not** pre-bind it to any namespace. The demo env (`hack/setup-env.sh`) creates a `ManagedClusterSetBinding` for `global` in the `default` namespace, so the live bundle stays exactly the four objects above. **If** you're told the env has no such binding, also emit a `ManagedClusterSetBinding` (name `global`, namespace `default`, `spec.clusterSet: global`). Do **not** hardcode the RHACM-only `open-cluster-management-global-set` namespace.
+- **Namespace must be shipped, not assumed.** Any namespace your workload targets must be created by the add-on — prepend a `Namespace` manifest to the template (see object 1). `agentInstallNamespace` does not do this. Skipping it = `namespaces "<ns>" not found` and a permanently `AVAILABLE=False` add-on.
 - Only `Deployment`/`DaemonSet` are health-gated agent workloads; other kinds may ride along but won't gate health.
 - Requires the `AddonManagement` feature gate enabled (default on).
 

@@ -21,6 +21,10 @@ setup-env:
 	bash ./hack/setup-env.sh 2
 
 demo:
+	@# Clean-room every run: if the dir already exists the skill just validates and
+	@# narrates the existing files instead of regenerating them. Delete first so the
+	@# demo always shows a real build from examples/node-exporter-daemonset.yaml.
+	@rm -rf ./ocm-addon-output
 	claude --dangerously-skip-permissions "Using SKILL.md, convert ./examples/node-exporter-daemonset.yaml into an OCM addon, interactive presenter-paced mode, output into ./ocm-addon-output"
 
 # Prove the LIVE skill run still produces the known-good bundle. Runs the skill

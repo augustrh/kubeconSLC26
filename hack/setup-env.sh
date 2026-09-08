@@ -4,6 +4,15 @@ set -e
 NUM_CLUSTERS=${1:-2}
 HUB_NAME="hub"
 
+# Resolve repo root from the script location so paths work no matter the CWD.
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# Single source of truth for the demo image: read it straight out of the example
+# workload so the pre-pull always matches what the add-on actually deploys.
+NODE_EXPORTER_IMAGE=$(grep -E '^[[:space:]]*image:[[:space:]]*quay.io/prometheus/node-exporter' \
+  "${REPO_ROOT}/examples/node-exporter-daemonset.yaml" 2>/dev/null | awk '{print $2}' | head -1)
+NODE_EXPORTER_IMAGE=${NODE_EXPORTER_IMAGE:-quay.io/prometheus/node-exporter:v1.12.1}
+
 echo "=== Creating OCM Hub Cluster: ${HUB_NAME} ==="
 if kind get clusters 2>/dev/null | grep -qx "${HUB_NAME}"; then
   echo "  [skip] kind cluster '${HUB_NAME}' already exists"
@@ -48,6 +57,22 @@ for i in $(seq 1 "${NUM_CLUSTERS}"); do
     echo "  [skip] kind cluster '${SPOKE_NAME}' already exists"
   else
     kind create cluster --name "${SPOKE_NAME}"
+  fi
+
+  # Pre-pull node-exporter straight into this spoke node's own containerd (via
+  # crictl, inside the node) so the DaemonSet pod starts instantly at demo time
+  # instead of pulling over conference wifi. The node pulls the right arch for
+  # itself — this avoids the host-Docker `kind load` path, which fails on
+  # multi-arch images on Docker Desktop / Apple Silicon ("content digest not
+  # found"). This copy lives in the node and dies with the cluster on `make clean`.
+  #
+  # BEST-EFFORT ONLY: guarded so a failed pre-pull can never abort setup (`set -e`);
+  # if it can't pull, the spoke just pulls the image itself when the add-on rolls out.
+  echo "=== Pre-pulling ${NODE_EXPORTER_IMAGE} onto ${SPOKE_NAME} ==="
+  if docker exec "${SPOKE_NAME}-control-plane" crictl pull "${NODE_EXPORTER_IMAGE}"; then
+    echo "  [ok] image cached on ${SPOKE_NAME}"
+  else
+    echo "  [warn] could not pre-pull onto ${SPOKE_NAME}; it'll pull at deploy time"
   fi
 
   echo "=== Joining ${SPOKE_NAME} to Hub ==="

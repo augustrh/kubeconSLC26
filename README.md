@@ -21,7 +21,7 @@ the only thing you do on stage is run the skill → apply → watch it light up.
 **Once, ahead of the session (slow, needs Docker + a `sudo` prompt for clusteradm):**
 
 ```bash
-make setup-env      # kind hub + 2 spokes, joined & accepted, 'global' set bound to 'default'
+make setup-env      # kind hub + 2 spokes, joined & accepted, 'global' bound to 'default', node-exporter image pre-pulled onto each spoke
 ```
 
 Confirm both spokes are healthy before you rely on it:
@@ -64,7 +64,19 @@ make reset               # tear the add-on back down + wait for spokes to drain,
 For a real on-stage emergency, `make showtime-glass` runs the same flow against the
 known-good `break-glass/` bundle.
 
-**Teardown when you're completely done:** `make clean` (deletes the kind clusters).
+### `reset` vs `clean` — two scopes of teardown
+
+| Command | What it removes | What survives | When to use |
+| ------- | --------------- | ------------- | ----------- |
+| `make reset` | Just the add-on: the objects on the hub **and** the workload off the spokes (waits until `monitoring` is empty on every spoke). Bundle-agnostic — deletes by kind/name, so no orphaned Placement. | The kind clusters stay up. | **Between rehearsals** — back to "ready to demo" in seconds without rebuilding. |
+| `make clean` | The **kind clusters entirely** (`hub`, `cluster-1`, `cluster-2`) plus the live `ocm-addon-output/` files. | Nothing (the host's cached image persists — that's intentional, it makes the next build fast). | **Starting over from scratch**, or when you're completely done. |
+
+**Full from-scratch rebuild:**
+
+```bash
+make clean          # delete all three kind clusters + live output
+make setup-env      # rebuild hub + 2 spokes, join/accept, bind 'global', pre-pull the image
+```
 
 > 🧯 **Break glass:** [`break-glass/`](break-glass/README.md) holds a known-good bundle. `make demo` writes its live output to `ocm-addon-output/` and never touches it, so it's always a safe fallback: `kubectl apply -f ./break-glass/`.
 
@@ -82,13 +94,22 @@ known-good `break-glass/` bundle.
    make demo
    ```
 
-3. **Deploy the scaffolded Add-On to the Hub:**
+3. **Deploy the scaffolded Add-On and watch it roll out — one command:**
    ```bash
-   kubectl apply -f ./ocm-addon-output/
+   make showtime
    ```
-   > 🧯 **Demo emergency?** A known-good copy of this bundle lives in [`break-glass/`](break-glass/README.md). If the live skill run misbehaves, `kubectl apply -f ./break-glass/` instead.
+   `make showtime` runs all three payoff steps as one calm, self-terminating flow:
+   applies `./ocm-addon-output/` to the hub, live-refreshes the rollout until every
+   add-on is `Available` **and** node-exporter pods are actually `Ready` on each spoke
+   (then stops on its own — no hanging `kubectl … -w`), and prints the pods per cluster.
+   > 🧯 **Demo emergency?** If the live skill run misbehaves, `make showtime-glass`
+   > runs the exact same flow against the known-good [`break-glass/`](break-glass/README.md) bundle.
 
-4. **Verify rollout across all managed clusters:**
+   <details><summary>What <code>make showtime</code> does under the hood (if you'd rather run it by hand)</summary>
+
    ```bash
-   kubectl get managedclusteraddons -A
+   kubectl apply -f ./ocm-addon-output/          # apply the 4 objects to the hub
+   kubectl get managedclusteraddons -A           # watch AVAILABLE flip to True fleet-wide
+   kubectl --context kind-cluster-1 get pods -n monitoring -o wide   # the pods, on a spoke
    ```
+   </details>
