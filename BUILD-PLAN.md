@@ -76,7 +76,7 @@ The current SKILL.md says "do not add conversational text." The talk is the oppo
 
 A live cluster build can't happen in the talk window. Plan:
 - **Pre-provision** hub + 2 spokes before the session (`make setup-env`); the *live* part is running the skill → `kubectl apply` → `kubectl get managedclusteraddon -A` lighting up across clusters.
-- **Rehearsed golden path** + a **pre-generated `ocm-addon-output/`** committed as a fallback if the live skill run misbehaves.
+- **Rehearsed golden path** + a **pre-generated bundle committed under `break-glass/`** as a fallback if the live skill run misbehaves (`kubectl apply -f ./break-glass/`). `make demo` writes to `ocm-addon-output/`, so the fallback is never clobbered.
 - **Assertions** in setup: managedclusters `Available`, addon-manager running, global-set binding present, feature gate on.
 - A **teardown/reset** (`make clean`) and a **re-arm** script to get back to a known state between rehearsals.
 - Timeboxed **rollout wait** with a visible verify (watch the addons flip to `Available`).

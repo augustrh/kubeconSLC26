@@ -46,7 +46,7 @@ This step **touches no cluster.** It's pure authoring. The skill reads your sing
 - **`03-cluster-management-addon.yaml` (ClusterManagementAddOn) — *register + roll out.*** Carries the required `addon.open-cluster-management.io/lifecycle: "addon-manager"` annotation (without it the addon-manager won't own the add-on), lists both configs in `supportedConfigs`, and — the payoff wiring — sets `installStrategy.type: Placements` pointing at the `select-all` Placement in `default`.
 - **`04-placement.yaml` (Placement) — *which clusters.*** `spec.clusterSets: [global]`, no predicates = select everything.
 
-There's no controller involved yet — these are just files on disk. The pre-generated `ocm-addon-output/` in the repo is the committed golden copy, so if the live skill run ever misbehaves on stage you can fall back to `kubectl apply` on the known-good bundle.
+There's no controller involved yet — these are just files on disk. A known-good copy of this bundle is committed under `break-glass/` (see its README), so if the live skill run ever misbehaves on stage you can fall back to `kubectl apply -f ./break-glass/`. `make demo` writes to `ocm-addon-output/` and never touches `break-glass/`.
 
 ---
 
