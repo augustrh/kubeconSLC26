@@ -4,6 +4,8 @@
 
 The worked example **deploys [Prometheus node-exporter](https://github.com/prometheus/node_exporter) as an OCM add-on** — taking the DaemonSet you'd normally run on one cluster and rolling it out to every node of every cluster in the fleet, from a single apply on the hub. node-exporter exposes hardware and kernel metrics (`:9100/metrics`) for Prometheus to scrape; it's a workload most Kubernetes users already run, which makes it a clean stand-in for "any single-cluster agent." Swap in your own `Deployment` or `DaemonSet` and the skill works the same way.
 
+The work is planned to be presneted as a Lightning Talk at KubeCon NA 2026. The core of this work is a **DEMO** and is not intended for any production use. Whilst there is a verb to create a standalone skill the core use here is as a demo to introduce others to OCM add-ons and demonestrate quickly, but also indepdently after the talk, the HOW of doing this.
+
 ## Architecture & Mental Model
 
 The skill generates four core OCM resources — **three objects, one placement, and the hub does the rest:**
