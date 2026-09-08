@@ -2,6 +2,8 @@
 
 A step-by-step tour of the four [README](README.md) quickstart commands, and what each one does *behind the scenes*. If you're new to OCM add-ons, read this alongside running the commands.
 
+**What this demo does:** it **deploys [Prometheus node-exporter](https://github.com/prometheus/node_exporter) as an OCM add-on.** node-exporter is a small, widely-used agent that exposes a host's hardware and kernel metrics (CPU, memory, disk, network) at `:9100/metrics` for Prometheus to scrape. It normally runs as a DaemonSet — one pod per node — with host access so it can read the real host. On one cluster that's trivial; the *real problem* is running it on every node of *every* cluster in a fleet, kept consistent and upgradable. That's exactly what turning it into an add-on solves. node-exporter is just the concrete payload — swap in any `Deployment` or `DaemonSet` and the flow is identical.
+
 **The through-line:** step 1 is plumbing (hub + spokes + the one binding that makes placement work), step 2 is authoring (four files, no cluster touched), step 3 is a single hub-side apply, and step 4 is watching the hub fan it out. The four objects map cleanly to **what to ship → how it varies → register + roll out → which clusters.**
 
 ---
@@ -40,7 +42,7 @@ A step-by-step tour of the four [README](README.md) quickstart commands, and wha
 This step **touches no cluster.** It's pure authoring. The skill reads your single-cluster DaemonSet and emits the four OCM manifests into `ocm-addon-output/`, one object per turn in presenter-paced mode (it explains each, prints the YAML, then waits for you to say "next" — that's the stage-timing control). The four it produces:
 
 - **`01-addon-template.yaml` (AddOnTemplate) — *what to ship.*** Your node-exporter DaemonSet, verbatim, wrapped in `spec.agentSpec.workload.manifests`, plus a `monitoring` Namespace. The only edits to your original YAML are two placeholders: `{{IMAGE_TAG}}` and `{{LOG_LEVEL}}`. These are **bare double-brace** template vars — *not* Go dotted-paths. That distinction is a silent-failure trap: `{{ .AddOnDeploymentConfig.spec... }}` would never resolve.
-- **`02-addon-deployment-config.yaml` (AddOnDeploymentConfig) — *per-cluster knobs.*** Supplies the values for those placeholders (`IMAGE_TAG=v1.8.2`, `LOG_LEVEL=info`) via `customizedVariables`. This is the "one template, every cluster can differ" object.
+- **`02-addon-deployment-config.yaml` (AddOnDeploymentConfig) — *per-cluster knobs.*** Supplies the values for those placeholders (`IMAGE_TAG=v1.12.1`, `LOG_LEVEL=info`) via `customizedVariables`. This is the "one template, every cluster can differ" object.
 - **`03-cluster-management-addon.yaml` (ClusterManagementAddOn) — *register + roll out.*** Carries the required `addon.open-cluster-management.io/lifecycle: "addon-manager"` annotation (without it the addon-manager won't own the add-on), lists both configs in `supportedConfigs`, and — the payoff wiring — sets `installStrategy.type: Placements` pointing at the `select-all` Placement in `default`.
 - **`04-placement.yaml` (Placement) — *which clusters.*** `spec.clusterSets: [global]`, no predicates = select everything.
 

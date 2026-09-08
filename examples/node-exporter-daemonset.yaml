@@ -1,4 +1,10 @@
 # A recognizable, real single-cluster agent: Prometheus node-exporter.
+# node-exporter exposes hardware/kernel metrics (CPU, memory, disk, network) of
+# the host it runs on, at :9100/metrics, for Prometheus to scrape. It's run as a
+# DaemonSet (one pod per node) with host access so it can see the real host.
+#   Project: https://github.com/prometheus/node_exporter
+#   Image:   quay.io/prometheus/node-exporter  (latest release: v1.12.1, 2026-07-14)
+#
 # The "real problem": you need node metrics on every node — now do it on every
 # node of every cluster in the fleet, with per-cluster knobs (log level, image tag).
 # This is the input the skill converts into an OCM add-on bundle.
@@ -22,7 +28,7 @@ spec:
       hostPID: true
       containers:
         - name: node-exporter
-          image: quay.io/prometheus/node-exporter:v1.8.2
+          image: quay.io/prometheus/node-exporter:v1.12.1
           args:
             - "--path.rootfs=/host/root"
             - "--log.level=info"

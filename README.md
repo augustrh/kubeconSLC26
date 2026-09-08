@@ -2,6 +2,8 @@
 
 `ocm-addon-skill` is an agentic skill designed for Claude CLI. It transforms standard single-cluster Kubernetes manifests into declaratively managed Open Cluster Management (OCM) Add-On bundles ready for multi-cluster fleet deployment.
 
+The worked example **deploys [Prometheus node-exporter](https://github.com/prometheus/node_exporter) as an OCM add-on** — taking the DaemonSet you'd normally run on one cluster and rolling it out to every node of every cluster in the fleet, from a single apply on the hub. node-exporter exposes hardware and kernel metrics (`:9100/metrics`) for Prometheus to scrape; it's a workload most Kubernetes users already run, which makes it a clean stand-in for "any single-cluster agent." Swap in your own `Deployment` or `DaemonSet` and the skill works the same way.
+
 ## Architecture & Mental Model
 
 The skill generates four core OCM resources — **three objects, one placement, and the hub does the rest:**

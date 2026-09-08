@@ -12,6 +12,6 @@ spec:
   agentInstallNamespace: ""
   customizedVariables:
     - name: IMAGE_TAG
-      value: "v1.8.2"
+      value: "v1.12.1"
     - name: LOG_LEVEL
       value: "info"
