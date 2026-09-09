@@ -10,7 +10,7 @@ A step-by-step tour of the [README](README.md) quickstart commands, and what eac
 
 ## Step 1 — `make setup-env`
 
-**What you type:** `make setup-env` → runs `./hack/setup-env.sh 2` (the `2` = number of spokes).
+**What you type:** `make setup-env` → runs `./hack/setup-env.sh $(NUM_CLUSTERS)` (the argument = number of spokes, default `2`). Change the fleet size with `make setup-env NUM_CLUSTERS=3`; `make clean` honors it too, and every other command auto-discovers the spokes from the hub.
 
 **What happens behind the scenes:**
 

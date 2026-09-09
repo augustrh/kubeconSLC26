@@ -27,6 +27,14 @@ the only thing you do on stage is run the skill → apply → watch it light up.
 make setup-env      # kind hub + 2 spokes, joined & accepted, 'global' bound to 'default', node-exporter image pre-pulled onto each spoke
 ```
 
+Want a different fleet size? Set `NUM_CLUSTERS` (default 2) — `setup-env` and `clean`
+both honor it, and the rest of the demo auto-discovers spokes from the hub, so nothing
+else needs a flag:
+
+```bash
+make setup-env NUM_CLUSTERS=3    # hub + cluster-1, cluster-2, cluster-3
+```
+
 Confirm both spokes are healthy before you rely on it:
 
 ```bash
@@ -82,13 +90,15 @@ known-good `break-glass/` bundle.
 | Command | What it removes | What survives | When to use |
 | ------- | --------------- | ------------- | ----------- |
 | `make reset` | Just the add-on: the objects on the hub **and** the workload off the spokes (waits until `monitoring` is empty on every spoke). Bundle-agnostic — deletes by kind/name, so no orphaned Placement. | The kind clusters stay up. | **Between rehearsals** — back to "ready to demo" in seconds without rebuilding. |
-| `make clean` | The **kind clusters entirely** (`hub`, `cluster-1`, `cluster-2`) plus the live `ocm-addon-output/` files. | Nothing (the host's cached image persists — that's intentional, it makes the next build fast). | **Starting over from scratch**, or when you're completely done. |
+| `make clean` | The **kind clusters entirely** (the `hub` plus every `cluster-N` you built) plus the live `ocm-addon-output/` files. Matched by name, so any unrelated kind clusters on your machine are left alone. | Nothing (the host's cached image persists — that's intentional, it makes the next build fast). | **Starting over from scratch**, or when you're completely done. |
 
 **Full from-scratch rebuild:**
 
 ```bash
-make clean          # delete all three kind clusters + live output
-make setup-env      # rebuild hub + 2 spokes, join/accept, bind 'global', pre-pull the image
+make clean                    # delete the demo's kind clusters (hub + every cluster-N) + live output
+make setup-env                # rebuild hub + 2 spokes, join/accept, bind 'global', pre-pull the image
+# ...or rebuild with a different fleet size:
+make setup-env NUM_CLUSTERS=3 # hub + 3 spokes
 ```
 
 > 🧯 **Break glass:** [`break-glass/`](break-glass/README.md) holds a known-good bundle. `make demo` writes its live output to `ocm-addon-output/` and never touches it, so it's always a safe fallback: `kubectl apply -f ./break-glass/`.

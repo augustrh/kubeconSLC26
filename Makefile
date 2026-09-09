@@ -1,5 +1,11 @@
 .PHONY: check-diff test-e2e test-unit images image-push image-manifest image-manifest-annotate image-manifest-push setup-env demo verify showtime showtime-glass diagram skill reset clean
 
+# Number of managed-cluster spokes to create. Override on the command line, e.g.
+#   make setup-env NUM_CLUSTERS=3
+# setup-env and clean both honor this. (demo/showtime/reset auto-discover spokes
+# from the hub, so they adapt to whatever N you built without any flag.)
+NUM_CLUSTERS ?= 2
+
 check-diff:
 	@git diff --exit-code || (echo "Git working directory is dirty!" && exit 1)
 
@@ -18,7 +24,7 @@ image-manifest-push:
 	@echo "No container images for this skill project."
 
 setup-env:
-	bash ./hack/setup-env.sh 2
+	bash ./hack/setup-env.sh $(NUM_CLUSTERS)
 
 demo:
 	@# Clean-room every run: if the dir already exists the skill just validates and
@@ -95,7 +101,15 @@ reset:
 	@echo "    (and on a spoke: kubectl --context kind-cluster-1 get pods -n monitoring)"
 
 # Full teardown: delete the kind clusters entirely (use when you're finished, not
-# between rehearsals). Also removes the live skill output.
+# between rehearsals). Also removes the live skill output. Deletes the demo's own
+# clusters — the hub plus every 'cluster-N' — whatever count you built, matched by
+# name so any UNRELATED kind clusters on your machine are left untouched.
 clean:
 	rm -rf ./ocm-addon-output
-	kind delete clusters hub cluster-1 cluster-2
+	@targets=$$(kind get clusters 2>/dev/null | grep -E '^(hub|cluster-[0-9]+)$$' || true); \
+	if [ -n "$$targets" ]; then \
+		echo "Deleting kind clusters: $$targets"; \
+		kind delete clusters $$targets; \
+	else \
+		echo "No demo kind clusters (hub / cluster-N) found — nothing to delete."; \
+	fi
