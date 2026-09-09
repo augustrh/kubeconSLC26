@@ -15,128 +15,78 @@ The skill generates four core OCM resources — **three objects, one placement, 
 3. `ClusterManagementAddOn`: *Register + roll out.* Registers the add-on with the hub and wires both configs; its `installStrategy` points at a Placement.
 4. `Placement`: *Which clusters — the payoff.* Selects the target fleet (`cluster.open-cluster-management.io/v1beta1`); referenced by the add-on's `installStrategy`. **Not** a Governance `PlacementBinding`.
 
-## Pre-demo flow (stage prep)
-
-The live talk is a 5-min lightning slot: the clusters are **pre-provisioned**, and
-the only thing you do on stage is run the skill → apply → watch it light up. Get to
-"ready to demo" *before* you present.
-
-**Once, ahead of the session (slow, needs Docker + a `sudo` prompt for clusteradm):**
-
-```bash
-make setup-env      # kind hub + 2 spokes, joined & accepted, 'global' bound to 'default', node-exporter image pre-pulled onto each spoke
-```
-
-Want a different fleet size? Set `NUM_CLUSTERS` (default 2) — `setup-env` and `clean`
-both honor it, and the rest of the demo auto-discovers spokes from the hub, so nothing
-else needs a flag:
-
-```bash
-make setup-env NUM_CLUSTERS=3    # hub + cluster-1, cluster-2, cluster-3
-```
-
-Confirm both spokes are healthy before you rely on it:
-
-```bash
-kubectl --context kind-hub get managedcluster    # both: JOINED=True, AVAILABLE=True
-```
-
-**Optional but recommended — prove the live skill still matches the fallback:**
-
-```bash
-make verify         # runs the skill (--quiet) and diffs its output against break-glass/
-```
-
-**Right before you go on (fast — returns to a clean slate, clusters stay up):**
-
-```bash
-make reset          # removes any deployed add-on so the demo starts from nothing
-```
-
-`make reset` deletes the add-on objects on the hub by kind/name (so it works no
-matter what the live run named its Placement) and then **waits until node-exporter
-is actually gone from every spoke** before returning — the hub-side delete finishes
-first, but the workload comes off the spokes a beat later (ManifestWork GC). When
-reset returns, you're genuinely at a clean slate.
-
-Now you're staged: clusters up, nothing deployed. For the ~75–85s rollout gap, keep
-[`docs/rollout-stage-notes.md`](docs/rollout-stage-notes.md) (the "meanwhile, the hub
-is doing the work" diagram + a paced ~80s talk-track) handy. To put the diagram on a
-second screen as a clean, projector-friendly page:
-
-```bash
-make diagram        # regenerate + open docs/rollout-diagram.html in your browser
-```
-
-The diagram has one source of truth — [`docs/rollout-diagram.txt`](docs/rollout-diagram.txt) —
-which `make showtime` prints live, the stage notes embed, and `make diagram` renders.
-Edit that one file and all three stay in sync. For a static image (slides), run
-`bash ./hack/render-diagram.sh --png` to also write `docs/rollout-diagram.png`.
-
-**Rehearsal loop** (repeat as often as you like without rebuilding clusters):
-
-```bash
-make demo                # generate the bundle (interactive, presenter-paced)
-make showtime            # apply + watch until Available + show pods per spoke (holds until Ctrl-C)
-make reset               # tear the add-on back down + wait for spokes to drain, ready for the next run
-```
-
-`make showtime` runs the three payoff steps as one calm flow (no hanging `kubectl … -w`).
-For a real on-stage emergency, `make showtime-glass` runs the same flow against the
-known-good `break-glass/` bundle.
-
-### `reset` vs `clean` — two scopes of teardown
-
-| Command | What it removes | What survives | When to use |
-| ------- | --------------- | ------------- | ----------- |
-| `make reset` | Just the add-on: the objects on the hub **and** the workload off the spokes (waits until `monitoring` is empty on every spoke). Bundle-agnostic — deletes by kind/name, so no orphaned Placement. | The kind clusters stay up. | **Between rehearsals** — back to "ready to demo" in seconds without rebuilding. |
-| `make clean` | The **kind clusters entirely** (the `hub` plus every `cluster-N` you built) plus the live `ocm-addon-output/` files. Matched by name, so any unrelated kind clusters on your machine are left alone. | Nothing (the host's cached image persists — that's intentional, it makes the next build fast). | **Starting over from scratch**, or when you're completely done. |
-
-**Full from-scratch rebuild:**
-
-```bash
-make clean                    # delete the demo's kind clusters (hub + every cluster-N) + live output
-make setup-env                # rebuild hub + 2 spokes, join/accept, bind 'global', pre-pull the image
-# ...or rebuild with a different fleet size:
-make setup-env NUM_CLUSTERS=3 # hub + 3 spokes
-```
-
-> 🧯 **Break glass:** [`break-glass/`](break-glass/README.md) holds a known-good bundle. `make demo` writes its live output to `ocm-addon-output/` and never touches it, so it's always a safe fallback: `kubectl apply -f ./break-glass/`.
-
 ## Quickstart
 
-> New to OCM add-ons? See **[WALKTHROUGH.md](WALKTHROUGH.md)** for a step-by-step tour of what each command below does behind the scenes.
+> New to OCM add-ons? **[WALKTHROUGH.md](WALKTHROUGH.md)** tours what each command below does behind the scenes.
 
-1. **Spin up local multi-cluster environment (Hub + 2 Managed Clusters):**
-   ```bash
-   make setup-env
-   ```
+```bash
+make setup-env      # 1. one-time (slow): local fleet — kind hub + 2 spokes
+make demo           # 2. run the skill — scaffold the add-on from a sample workload
+make showtime       # 3. apply it + watch it roll out fleet-wide (Ctrl-C when done)
+```
 
-2. **Run the Claude CLI Skill against a sample workload:**
-   ```bash
-   make demo
-   ```
+That's the whole loop: `setup-env` is a one-time setup step, then `demo` → `showtime`
+is the demo itself. Everything else is in **[Commands](#commands)**; if you're
+presenting, see **[Running the live talk](#running-the-live-talk)**.
 
-3. **Deploy the scaffolded Add-On and watch it roll out — one command:**
-   ```bash
-   make showtime
-   ```
-   `make showtime` runs all three payoff steps as one calm flow: applies
-   `./ocm-addon-output/` to the hub, live-refreshes the rollout until every add-on is
-   `Available` **and** node-exporter pods are actually `Ready` on each spoke, prints
-   the pods per cluster, then **holds on the finished screen** (refreshing in place)
-   until you press **Ctrl-C** — no hanging `kubectl … -w`, nothing scrolls away on stage.
-   > 🧯 **Demo emergency?** If the live skill run misbehaves, `make showtime-glass`
-   > runs the exact same flow against the known-good [`break-glass/`](break-glass/README.md) bundle.
+## Commands
 
-   <details><summary>What <code>make showtime</code> does under the hood (if you'd rather run it by hand)</summary>
+| Command | What it does |
+| ------- | ------------ |
+| `make setup-env` | One-time: build the local fleet (kind hub + N spokes). |
+| `make demo` | Run the skill — scaffold the four add-on objects from a sample workload. |
+| `make showtime` | Apply the bundle + watch it roll out fleet-wide (holds until Ctrl-C). |
+| `make showtime-glass` | Like `showtime`, but deploys the known-good `break-glass/` bundle. |
+| `make reset` | Remove the add-on, keep the clusters — use between rehearsals. |
+| `make clean` | Delete the demo's kind clusters + live output — start over. |
+| `make verify` | Run the skill headless and diff its output against `break-glass/`. |
+| `make diagram` | Open the rollout diagram as a clean HTML page. |
+| `make skill` | Package the skill as a standalone, installable Agent Skill. |
 
-   ```bash
-   kubectl apply -f ./ocm-addon-output/          # apply the 4 objects to the hub
-   kubectl get managedclusteraddons -A           # watch AVAILABLE flip to True fleet-wide
-   kubectl --context kind-cluster-1 get pods -n monitoring -o wide   # the pods, on a spoke
-   ```
-   </details>
+- **Fleet size** defaults to 2 — change it with `NUM_CLUSTERS`, e.g. `make setup-env NUM_CLUSTERS=3`.
+- **`reset` vs `clean`:** `reset` keeps the clusters up (fast, between rehearsals); `clean` deletes them (start fresh, then `make setup-env` to rebuild).
+
+## Running the live talk
+
+The talk is a 5-minute lightning slot: the clusters are **pre-provisioned**, so on
+stage you only run the skill → apply → watch it light up. Get to "ready to demo"
+*before* you present.
+
+**Once, ahead of the session** (slow; needs Docker, and `clusteradm` may prompt for `sudo`):
+
+```bash
+make setup-env
+kubectl --context kind-hub get managedcluster    # confirm each spoke: JOINED=True, AVAILABLE=True
+```
+
+**Right before you go on** (fast — clusters stay up):
+
+```bash
+make reset          # back to a clean slate: clusters up, nothing deployed
+```
+
+`make reset` waits until node-exporter is actually gone from every spoke before
+returning (the hub-side delete finishes first; the workload comes off the spokes a
+beat later via ManifestWork GC), so you're genuinely at zero.
+
+**The live loop** (rehearse it as often as you like — no cluster rebuild):
+
+```bash
+make demo           # scaffold the bundle (interactive, presenter-paced)
+make showtime       # apply + watch the rollout, holds until Ctrl-C
+make reset          # tear it back down, ready for the next run
+```
+
+During the **~75–85s rollout gap**, narrate from
+[`docs/rollout-stage-notes.md`](docs/rollout-stage-notes.md) (the diagram + a paced
+~80s talk-track). Put the diagram on a second screen with `make diagram`; it and the
+live `showtime` screen share one source, [`docs/rollout-diagram.txt`](docs/rollout-diagram.txt).
+For a slide image, run `bash ./hack/render-diagram.sh --png`.
+
+> 🧯 **Break glass:** [`break-glass/`](break-glass/README.md) is a known-good bundle
+> that `make demo` never touches. If the live run misbehaves, `make showtime-glass`
+> deploys it instead. (Optional pre-flight: `make verify` proves the live skill still
+> matches this fallback.)
 
 ## Take the skill with you (`make skill`)
 

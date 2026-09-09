@@ -110,3 +110,9 @@ The workload you started with is now on every node of every cluster, delivered b
 | 2 | `AddOnDeploymentConfig` | How it varies | Per-cluster knobs fill the `{{VARIABLE}}` placeholders |
 | 3 | `ClusterManagementAddOn` | Register + roll out | `installStrategy` points at a Placement |
 | 4 | `Placement` | Which clusters | Select the fleet — the payoff |
+
+---
+
+This tour covers the core loop (`setup-env` → `demo` → `showtime` → `reset`). For the
+full command set — including `make clean`, `make verify`, `make diagram`, and
+`make skill` — see the [README Commands table](README.md#commands).
