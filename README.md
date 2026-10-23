@@ -46,6 +46,14 @@ presenting, see **[Running the live talk](#running-the-live-talk)**.
 - **Fleet size** defaults to 2 — change it with `NUM_CLUSTERS`, e.g. `make setup-env NUM_CLUSTERS=3`.
 - **`reset` vs `clean`:** `reset` keeps the clusters up (fast, between rehearsals); `clean` deletes them (start fresh, then `make setup-env` to rebuild).
 
+## Using an Existing OCM Cluster
+
+Already have an OCM hub and registered managed clusters?
+
+Follow the [Existing Cluster Workflow](docs/existing-cluster-workflow.md)
+to generate, validate, and deploy an OCM add-on without creating
+additional Kind clusters.
+
 ## Running the live talk
 
 The talk is a 5-minute lightning slot: the clusters are **pre-provisioned**, so on
